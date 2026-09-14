@@ -1,0 +1,149 @@
+----- CRIAÇÃO DO UNITY CATALOG (SQL EDITOR) -----
+
+CREATE CATALOG IF NOT EXISTS datalake;
+
+CREATE SCHEMA IF NOT EXISTS datalake.bronze;
+
+CREATE VOLUME IF NOT EXISTS datalake.bronze.raw_csv;
+
+CREATE VOLUME IF NOT EXISTS datalake.bronze.schema;
+
+CREATE VOLUME IF NOT EXISTS datalake.bronze.checkpoint;
+
+----- VALIDANDO CRIAÇÃO DO VOLUME (NOTEBOOK PYTHON) -----
+
+volume_path = "/Volumes/datalake/bronze/raw_csv"
+
+display(dbutils.fs.ls(volume_path))
+
+----- CRIANDO O NOTEBOOK 1 (INGESTÃO DE DADOS)(NOTEBOOK PYTHON) -----
+
+import requests
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
+url = "[SUA URL AQUI]"
+
+volume_path = "/Volumes/datalake/bronze/raw_csv"
+
+response = requests.get(
+    url,
+    timeout=30
+)
+
+response.raise_for_status()
+
+content_type = response.headers.get("Content-Type", "")
+conteudo = response.text
+
+print("Status:", response.status_code)
+print("Content-Type:", content_type)
+
+
+# ============================================================
+# VERIFICAR SE O ARQUIVO ESTÁ PRONTO
+# ============================================================
+
+if '"status": "updating"' in conteudo:
+
+    print("Arquivo ainda não está pronto.")
+    print("Nenhum CSV foi salvo.")
+
+else:
+
+    # ========================================================
+    # CRIAR NOME DA CAPTURA
+    # ========================================================
+
+    agora = datetime.now(
+        ZoneInfo("America/Sao_Paulo")
+    )
+
+    nome_arquivo = agora.strftime(
+        "%Y%m%d_%H%M%S"
+    ) + ".csv"
+
+    arquivo = f"{volume_path}/{nome_arquivo}"
+
+
+    # ========================================================
+    # SALVAR CSV
+    # ========================================================
+
+    dbutils.fs.put(
+        arquivo,
+        conteudo,
+        overwrite=False
+    )
+
+    print(f"CSV salvo: {arquivo}")
+
+----- VERIFICANDO ARQUIVOS ARMAZENADOS (NOTEBOOK PYTHON) -----
+
+display(
+    dbutils.fs.ls(volume_path)
+)
+
+----- GRAVANDO OS DADOS NA CAMADA BRONZE (NOTEBOOK PYTHON) -----
+
+from pyspark.sql.functions import current_timestamp
+
+
+source_path = "/Volumes/datalake/bronze/raw_csv"
+
+checkpoint_path = "/Volumes/datalake/bronze/checkpoint"
+
+schema_path = "/Volumes/datalake/bronze/schema"
+
+
+# ============================================================
+# 1. AUTO LOADER
+# ============================================================
+
+df = (
+    spark.readStream
+    .format("cloudFiles")
+    .option("cloudFiles.format", "csv")
+    .option("cloudFiles.schemaLocation", schema_path)
+    .option("header", "true")
+    .load(source_path)
+)
+
+
+# ============================================================
+# 2. TIMESTAMP DA INGESTÃO
+# ============================================================
+
+df = df.withColumn(
+    "ingestion_timestamp",
+    current_timestamp()
+)
+
+
+# ============================================================
+# 3. GRAVAR NA BRONZE
+# ============================================================
+
+query = (
+    df.writeStream
+    .format("delta")
+    .option(
+        "checkpointLocation",
+        checkpoint_path
+    )
+    .outputMode("append")
+    .trigger(availableNow=True) #para processamento continuo usar .trigger(processingTime="10 seconds")
+    .toTable("datalake.bronze.dados")
+)
+
+----- ACESSANDO O DELTA TABLE (SQL EDITOR) -----
+
+SELECT *
+FROM datalake.bronze.dados
+ORDER BY ingestion_timestamp;
+
+----- DESCREVENDO DETALHES DO DELTA (SQL EDITOR) -----
+
+DESCRIBE DETAIL datalake.bronze.dados;
+
+DESCRIBE HISTORY datalake.bronze.dados;
