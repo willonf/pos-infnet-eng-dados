@@ -1,0 +1,369 @@
+---- MERGE SCHEMA (PYTHON NOTEBOOK) ----
+from pyspark import pipelines as dp
+from pyspark.sql.functions import current_timestamp, col
+
+
+# ============================================================
+# CONFIGURAÇÃO
+# ============================================================
+
+SOURCE_PATH = "/Volumes/datalake_financeiro/bronze/raw_csv"
+
+
+# ============================================================
+# BRONZE
+# ============================================================
+
+@dp.table(
+    name="dados_bronze",
+    comment="Camada Bronze com os arquivos CSV originais ingeridos via Auto Loader."
+)
+def dados_bronze():
+
+    df = (
+        spark.readStream
+        .format("cloudFiles")
+
+        # Formato da origem
+        .option("cloudFiles.format", "csv")
+
+        # Primeira linha do CSV contém os nomes das colunas
+        .option("header", "true")
+
+        # ====================================================
+        # SCHEMA EVOLUTION
+        # ====================================================
+        # Se um novo CSV trouxer uma coluna nova,
+        # o Auto Loader poderá adicionar essa coluna
+        # ao schema.
+        # ====================================================
+        .option(
+            "cloudFiles.schemaEvolutionMode",
+            "addNewColumns"
+        )
+
+        .load(SOURCE_PATH)
+    )
+
+    return (
+        df
+
+        # Arquivo de origem
+        .withColumn(
+            "source_file",
+            col("_metadata.file_path")
+        )
+
+        # Momento da ingestão
+        .withColumn(
+            "ingestion_timestamp",
+            current_timestamp()
+        )
+    )
+
+---- EXCEPTIONS - QUALIDADE (PYTHON NOTEBOOK) ----
+
+from pyspark import pipelines as dp
+from pyspark.sql.functions import (
+    col,
+    trim,
+    lit,
+    current_timestamp
+)
+
+
+# ============================================================
+# QUARENTENA
+# ============================================================
+
+@dp.materialized_view(
+    name="dados_quarantine",
+    comment="Registros rejeitados por problemas de qualidade."
+)
+def dados_quarantine():
+
+    # --------------------------------------------------------
+    # Lê a Bronze
+    # --------------------------------------------------------
+
+    df = spark.read.table("dados_bronze")
+
+
+    # ========================================================
+    # 1. TRANSACAO_ID NULO
+    # ========================================================
+
+    registros_nulos = (
+        df
+        .filter(
+            col("transacao_id").isNull()
+        )
+        .withColumn(
+            "quality_error",
+            lit("transacao_id nulo")
+        )
+    )
+
+
+    # ========================================================
+    # 2. TRANSACAO_ID VAZIO
+    # ========================================================
+
+    registros_vazios = (
+        df
+        .filter(
+            col("transacao_id").isNotNull()
+            &
+            (trim(col("transacao_id")) == "")
+        )
+        .withColumn(
+            "quality_error",
+            lit("transacao_id vazio")
+        )
+    )
+
+
+    # ========================================================
+    # 3. IDENTIFICA CHAVES DUPLICADAS
+    # ========================================================
+    #
+    # A duplicidade é avaliada dentro do mesmo source_file.
+    #
+    # Exemplo:
+    #
+    # arquivo A:
+    # transacao_id = 10
+    # transacao_id = 10  -> erro
+    #
+    # arquivo B:
+    # transacao_id = 10  -> permitido
+    #
+    # Isso é importante porque a mesma transação pode aparecer
+    # em snapshots diferentes.
+    # ========================================================
+
+    df_chaves_validas = (
+        df
+        .filter(
+            col("transacao_id").isNotNull()
+            &
+            (trim(col("transacao_id")) != "")
+        )
+    )
+
+
+    chaves_duplicadas = (
+        df_chaves_validas
+        .groupBy(
+            "source_file",
+            "transacao_id"
+        )
+        .count()
+        .filter(
+            col("count") > 1
+        )
+        .select(
+            "source_file",
+            "transacao_id"
+        )
+    )
+
+
+    # ========================================================
+    # 4. RECUPERA AS LINHAS DUPLICADAS
+    # ========================================================
+
+    registros_duplicados = (
+        df
+        .join(
+            chaves_duplicadas,
+            on=[
+                "source_file",
+                "transacao_id"
+            ],
+            how="inner"
+        )
+        .withColumn(
+            "quality_error",
+            lit("transacao_id duplicado no mesmo snapshot")
+        )
+    )
+
+
+    # ========================================================
+    # 5. CONSOLIDA A QUARENTENA
+    # ========================================================
+
+    quarantine = (
+        registros_nulos
+
+        .unionByName(
+            registros_vazios,
+            allowMissingColumns=True
+        )
+
+        .unionByName(
+            registros_duplicados,
+            allowMissingColumns=True
+        )
+
+        .withColumn(
+            "quarantine_timestamp",
+            current_timestamp()
+        )
+    )
+
+
+    return quarantine
+
+
+# ============================================================
+# DADOS VÁLIDOS
+# ============================================================
+
+@dp.materialized_view(
+    name="dados_silver_quality",
+    comment="Dados aprovados nas regras de qualidade."
+)
+
+# ============================================================
+# EXPECTATIONS
+# ============================================================
+#
+# As Expectations documentam e monitoram regras de qualidade.
+#
+# A filtragem abaixo continua sendo responsável por separar
+# efetivamente os dados válidos dos inválidos.
+# ============================================================
+
+@dp.expect(
+    "transacao_id_nao_nulo",
+    "transacao_id IS NOT NULL"
+)
+
+@dp.expect(
+    "transacao_id_nao_vazio",
+    "TRIM(transacao_id) <> ''"
+)
+
+def dados_silver_quality():
+
+    # --------------------------------------------------------
+    # Lê a Bronze
+    # --------------------------------------------------------
+
+    df = spark.read.table("dados_bronze")
+
+
+    # ========================================================
+    # 1. REMOVE TRANSACAO_ID NULO E VAZIO
+    # ========================================================
+
+    df_validos = (
+        df
+        .filter(
+            col("transacao_id").isNotNull()
+            &
+            (trim(col("transacao_id")) != "")
+        )
+    )
+
+
+    # ========================================================
+    # 2. IDENTIFICA DUPLICIDADES
+    # ========================================================
+
+    chaves_duplicadas = (
+        df_validos
+        .groupBy(
+            "source_file",
+            "transacao_id"
+        )
+        .count()
+        .filter(
+            col("count") > 1
+        )
+        .select(
+            "source_file",
+            "transacao_id"
+        )
+    )
+
+
+    # ========================================================
+    # 3. REMOVE TODAS AS CHAVES DUPLICADAS
+    # ========================================================
+
+    df_validos = (
+        df_validos
+        .join(
+            chaves_duplicadas,
+            on=[
+                "source_file",
+                "transacao_id"
+            ],
+            how="left_anti"
+        )
+    )
+
+
+    return df_validos
+
+---- CRIAR UMA CÓPIA DE DEMONSTRAÇÃO (SQL EDITOR) ----
+
+CREATE OR REPLACE TABLE datalake_financeiro.bronze.financeiro_demo
+AS
+SELECT *
+FROM datalake_financeiro.bronze.dados_silver_scd1;
+
+---- SUBSTITUIÇÃO (SQL EDITOR) ----
+
+SELECT *
+FROM datalake_financeiro.bronze.financeiro_demo
+WHERE transacao_id = 'TX-20260920-00014797';
+
+CREATE OR REPLACE TABLE datalake_financeiro.bronze.financeiro_correcao
+AS
+SELECT *
+FROM datalake_financeiro.bronze.financeiro_demo
+WHERE 1 = 0;
+
+INSERT INTO datalake_financeiro.bronze.financeiro_correcao
+SELECT
+    transacao_id,
+    data_hora,
+    conta_origem,
+    conta_destino,
+    tipo,
+    valor,
+    moeda,
+    'aprovada' AS status,
+    canal,
+    estabelecimento,
+    cidade,
+    uf,
+    codigo_autorizacao,
+    parcela
+FROM datalake_financeiro.bronze.financeiro_demo
+WHERE transacao_id = 'TX-20260920-00014797';
+
+INSERT INTO datalake_financeiro.bronze.financeiro_demo
+REPLACE WHERE transacao_id = 'TX-20260920-00014797'
+SELECT *
+FROM datalake_financeiro.bronze.financeiro_correcao;
+
+---- RESTAURAÇÃO (SQL EDITOR) ----
+
+DESCRIBE HISTORY datalake_financeiro.bronze.financeiro_demo;
+
+SELECT *
+FROM datalake_financeiro.bronze.financeiro_demo
+VERSION AS OF 1
+WHERE transacao_id = 'TX-20260920-00014797';
+
+RESTORE TABLE datalake_financeiro.bronze.financeiro_demo
+TO VERSION AS OF 1;
+
+---- VACUO (SQL EDITOR) ----
+
+VACUUM datalake_financeiro.bronze.financeiro_demo DRY RUN;

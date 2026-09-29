@@ -1,0 +1,79 @@
+Documentação: https://developers.databricks.com/docs/tools/databricks-cli
+
+Instalação Windows
+
+winget install Databricks.DatabricksCLI
+
+winget upgrade Databricks.DatabricksCLI
+
+Autenticação
+
+databricks auth login
+
+Verificação
+
+databricks current-user me -p [PROFILE NAME]
+
+ESTRUTURAÇÃO
+
+mkdir infnet-lakehouse
+cd infnet-lakehouse
+
+mkdir resources
+mkdir src
+
+---- ARQUIVOS - /databricks.yml (PASTA RAIZ)----
+
+bundle:
+  name: infnet_lakehouse
+
+include:
+  - resources/*.yml
+
+targets:
+  dev:
+    mode: development
+    default: true
+
+    workspace:
+      host: [SEU HOST AQUI]
+      profile: [SEU PROFILE]
+
+---- ARQUIVOS - resources/setup_job.yml----
+
+resources:
+
+  jobs:
+
+    setup_infra:
+
+      name: infnet-setup-infra
+
+      tasks:
+
+        - task_key: create_catalog_schemas
+
+          sql_task:
+            file:
+              path: ../src/setup.sql
+
+            warehouse_id: [WAREHOUSE_ID]
+
+---- ARQUIVOS - src/setup.sql----
+
+CREATE CATALOG IF NOT EXISTS infnet_lakehouse;
+
+CREATE SCHEMA IF NOT EXISTS infnet_lakehouse.bronze;
+
+CREATE SCHEMA IF NOT EXISTS infnet_lakehouse.silver;
+
+CREATE SCHEMA IF NOT EXISTS infnet_lakehouse.gold;
+
+
+---- COMANDO DE INICIALIZAÇÃO E DEPLOY ----
+
+databricks bundle validate -t dev 
+
+databricks bundle deploy -t dev
+
+bundle run -t dev setup_infra

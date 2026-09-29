@@ -1,0 +1,148 @@
+---- ACESSO A UM USUÁRIO ESPECÍFICO - FUNÇÃO SELECT (SQL EDITOR) ----
+GRANT SELECT
+ON TABLE datalake_financeiro.bronze.dados_bronze
+TO `adnankjebaileyjr@gmail.com`;
+
+---- ACESSO A UM GRUPO - CATALOG (SQL EDITOR) ----
+GRANT USE CATALOG
+ON CATALOG datalake_financeiro
+TO `engenheiro_de_dados`;
+
+---- ACESSO A UM GRUPO - SCHEMA (SQL EDITOR) ----
+GRANT USE SCHEMA
+ON SCHEMA datalake_financeiro.bronze
+TO `engenheiro_de_dados`;
+
+---- ACESSO A UM GRUPO - SELECT (SQL EDITOR) ----
+GRANT SELECT
+ON TABLE datalake_financeiro.bronze.dados_bronze
+TO `engenheiro_de_dados`;
+
+---- MOSTRAR ACESSOS (SQL EDITOR) ----
+SHOW GRANTS ON TABLE datalake_financeiro.bronze.dados_bronze;
+
+---- CRIANDO MASCARAMENTO PARA UM GRUPO (SQL EDITOR) ----
+CREATE FUNCTION datalake_financeiro.bronze.mask_source_file(
+    source_file STRING
+)
+RETURNS STRING
+RETURN
+    CASE
+        WHEN is_account_group_member('engenheiro_de_dados')
+            THEN '***'
+        ELSE source_file
+    END;
+
+
+ALTER TABLE datalake_financeiro.bronze.dados_bronze
+ALTER COLUMN source_file
+SET MASK datalake_financeiro.bronze.mask_source_file;
+
+----TAGS PARA COLUNA (SQL EDITOR) ----
+
+SET TAG ON COLUMN
+datalake_financeiro.bronze.dados_bronze.source_file
+`classification` = `red`;
+
+----TAGS PARA TABELA (SQL EDITOR) ----
+
+SET TAG ON TABLE datalake_financeiro.bronze.dados_silver_quality
+    `classification` = `green`;
+
+---- CRIANDO CRITÉRIOS DE GOVERNANÇA (SQL EDITOR) ----
+CREATE GOVERNED TAG classification
+  DESCRIPTION 'Classificação de sensibilidade dos dados'
+  VALUES ('green', 'yellow', 'red');
+
+---- TAGS PARA COLUNA (SQL EDITOR) ---
+ALTER TABLE infnet.bronze.dados
+ALTER COLUMN cpf
+SET TAGS ('classification' = 'red');
+
+---- APLICAÇÃO DE MASCARAMENTO (SQL EDITOR) ---
+CREATE OR REPLACE FUNCTION infnet.bronze.mask_red(valor STRING)
+RETURNS STRING
+RETURN '***REDACTED***';
+
+
+---- APLICAÇÃO DE POLITICA (SQL EDITOR) ---
+CREATE POLICY mask_red_columns
+ON SCHEMA infnet.bronze
+COLUMN MASK infnet.bronze.mask_red
+TO `account users`
+FOR TABLES
+MATCH COLUMNS has_tag_value('classification', 'red') AS m
+ON COLUMN m;
+
+---- REMOÇÃO DE POLITICA (SQL EDITOR) ---
+DROP POLICY mask_red_columns
+ON SCHEMA infnet.bronze;
+
+---- REVOGAÇÃO DE ACESSO (SQL EDITOR) ---
+REVOKE SELECT
+ON TABLE infnet.bronze.dados
+FROM `engenheiro_de_dados`;
+
+---- AUDITORIA (SQL EDITOR) ---
+SELECT *
+FROM system.access.audit
+LIMIT 10;
+
+SELECT *
+FROM system.billing.usage
+LIMIT 10;
+
+---- MONITORAMENTO DE SEGURANÇA - QUEM ACESSOU O QUÊ? (SQL EDITOR) ---
+SELECT
+    event_time,
+    user_identity.email AS usuario,
+    action_name,
+    request_params
+FROM system.access.audit
+WHERE event_time >= current_timestamp() - INTERVAL 1 DAY
+ORDER BY event_time DESC;
+
+---- MONITORAMENTO DE TABELA (SQL EDITOR) ---
+SELECT
+    event_time,
+    user_identity.email AS usuario,
+    action_name,
+    request_params
+FROM system.access.audit
+WHERE event_time >= current_timestamp() - INTERVAL 7 DAYS
+  AND to_json(request_params) LIKE '%infnet.bronze.dados%'
+ORDER BY event_time DESC;
+
+
+---- OBSERVABILIDADE DE LINHAGEM (SQL EDITOR) ---
+SELECT *
+FROM system.access.table_lineage
+WHERE event_time >= current_timestamp() - INTERVAL 7 DAYS;
+
+---- MONITORAMENTO DE JOBS (SQL EDITOR) ---
+SELECT *
+FROM system.lakeflow.job_run_timeline
+ORDER BY period_start_time DESC
+LIMIT 20;
+
+SELECT
+    result_state,
+    COUNT(*) AS quantidade
+FROM system.lakeflow.job_run_timeline
+WHERE period_start_time >= current_timestamp() - INTERVAL 7 DAYS
+GROUP BY result_state
+ORDER BY quantidade DESC;
+
+---- MONITORAMENTO DE CUSTOS (SQL EDITOR) ---
+SELECT
+    *
+FROM system.billing.usage
+WHERE usage_date >= current_date() - INTERVAL 7 DAYS;
+
+SELECT
+    identity_metadata.run_as,
+    SUM(usage_quantity) AS consumo
+FROM system.billing.usage
+WHERE usage_date >= current_date() - INTERVAL 7 DAYS
+GROUP BY identity_metadata.run_as
+ORDER BY consumo DESC;

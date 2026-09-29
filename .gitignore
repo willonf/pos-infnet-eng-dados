@@ -216,3 +216,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Query files
+projetos/projeto2/01-catalog-volumes

@@ -1,0 +1,138 @@
+----- CRIAÇÃO DO CATALOG E SCHEMA (SQL EDITOR) -----
+CREATE CATALOG IF NOT EXISTS aula03;
+CREATE SCHEMA IF NOT EXISTS aula03.bronze;
+
+----- CRIAÇÃO DE TABELA (SQL EDITOR) -----
+CREATE TABLE aula03.bronze.clientes (
+    id INT,
+    nome STRING,
+    idade INT
+)
+USING DELTA;
+
+----- INSERÇÃO DE DADOS (SQL EDITOR) -----
+INSERT INTO aula03.bronze.clientes (id, nome, idade)
+VALUES
+    (1, 'João', 25),
+    (2, 'Maria', 32),
+    (3, 'Carlos', 41),
+    (4, 'Ana', 28),
+    (5, 'Pedro', 35);
+
+
+----- REORDERING (SQL EDITOR) -----
+ALTER TABLE aula03.bronze.clientes
+ALTER COLUMN idade AFTER id;
+
+----- MAPPING (SQL EDITOR) -----
+
+ALTER TABLE aula03.bronze.clientes
+SET TBLPROPERTIES (
+    'delta.columnMapping.mode' = 'name',
+    'delta.minReaderVersion' = '2',
+    'delta.minWriterVersion' = '5'
+);
+
+----- RENAMING (SQL EDITOR) -----
+-- 2. Renomeia a coluna
+ALTER TABLE aula03.bronze.clientes
+RENAME COLUMN nome TO nome_cliente;
+
+----- DROP COLUMN (SQL EDITOR) -----
+ALTER TABLE aula03.bronze.clientes
+DROP COLUMN idade;
+
+----- DETAILS AND HISTORY (SQL EDITOR) -----
+DESCRIBE HISTORY aula03.bronze.clientes;
+
+DESCRIBE DETAIL aula03.bronze.clientes;
+
+----- TIME TRAVEL (SQL EDITOR) -----
+SELECT *
+FROM datalake.bronze.clientes VERSION AS OF 1;
+
+SELECT *
+FROM aula03.bronze.clientes
+TIMESTAMP AS OF '2026-09-13 05:08:36'; -- o último commit feito até 2026-09-13 05:08:36
+
+RESTORE TABLE aula03.bronze.dados TO VERSION AS OF 5;
+-- ou
+RESTORE TABLE aula03.bronze.dados  TO TIMESTAMP AS OF '2026-09-20 10:00:00';
+
+----- COPY TABLE (PYTHON) -----
+spark.sql("""
+CREATE TABLE infnet.silver.dados
+AS
+SELECT *
+FROM infnet.bronze.dados
+WHERE 1 = 0
+""")
+
+----- MERGE/UPSERT (PYTHON) -----
+from delta.tables import DeltaTable
+
+# --------------------------------------------------
+# 1. Tabela de destino
+# --------------------------------------------------
+
+destino = DeltaTable.forName(
+    spark,
+    "infnet.silver.dados"
+)
+
+
+# --------------------------------------------------
+# 2. Seleciona somente os registros novos
+#    e pega a última versão de cada matrícula
+# --------------------------------------------------
+
+origem = spark.sql("""
+    SELECT *
+    FROM (
+        SELECT
+            b.*,
+            ROW_NUMBER() OVER (
+                PARTITION BY matricula
+                ORDER BY ingestion_timestamp DESC
+            ) AS rn
+        FROM infnet.bronze.dados b
+        WHERE b.ingestion_timestamp >
+              COALESCE(
+                  (
+                      SELECT MAX(ingestion_timestamp)
+                      FROM infnet.silver.dados
+                  ),
+                  TIMESTAMP '1900-01-01'
+              )
+    )
+    WHERE rn = 1
+""")
+
+
+# --------------------------------------------------
+# 3. MERGE Bronze → Silver
+# --------------------------------------------------
+
+(
+    destino.alias("destino")
+    .merge(
+        origem.alias("origem"),
+        "destino.matricula = origem.matricula"
+    )
+    .whenMatchedUpdateAll(
+        condition="""
+            origem.ingestion_timestamp >
+            destino.ingestion_timestamp
+        """
+    )
+    .whenNotMatchedInsertAll()
+    .execute()
+)
+
+----- Z-ORDER (PYTHON) -----
+resultado = spark.sql("""
+    OPTIMIZE infnet.silver.dados
+    ZORDER BY (matricula)
+""")
+
+resultado.show(truncate=False)

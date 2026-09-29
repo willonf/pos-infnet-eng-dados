@@ -1,0 +1,264 @@
+----- PARTICIONAMENTO (NOTEBOOK PYTHON) -----
+spark.sql("""
+CREATE TABLE infnet.silver.dados_particionada
+USING DELTA
+PARTITIONED BY (curso)
+AS
+SELECT *
+FROM infnet.silver.dados
+""")
+
+spark.sql("""
+SELECT *
+FROM infnet.silver.dados_particionada
+WHERE curso = 'Ciência de Dados'
+""").display()
+
+spark.sql("""
+SELECT *
+FROM infnet.silver.dados
+WHERE curso = 'Ciência de Dados'
+""").display()
+
+----- STREAMING (NOTEBOOK PYTHON) -----
+
+from pyspark import pipelines as dp
+from pyspark.sql.functions import current_timestamp, col
+
+----- STREAMING COM DLT (NOTEBOOK PYTHON) -----
+# ============================================================
+# CAMINHO DOS ARQUIVOS
+# ============================================================
+
+source_path = "/Volumes/infnet/bronze/raw_csv"
+
+
+# ============================================================
+# BRONZE — AUTO LOADER
+# ============================================================
+
+@dp.table(
+    name="dados_bronze"
+)
+def dados_bronze():
+
+    df = (
+        spark.readStream
+        .format("cloudFiles")
+        .option("cloudFiles.format", "csv")
+        .option("header", "true")
+        .load(source_path)
+    )
+
+    return (
+        df
+        .withColumn(
+            "source_file",
+            col("_metadata.file_path")
+        )
+        .withColumn(
+            "ingestion_timestamp",
+            current_timestamp()
+        )
+    )
+
+----- CDC/SCD TYPE 1 / 2 (NOTEBOOK PYTHON) -----
+
+from pyspark import pipelines as dp
+
+from pyspark.sql import DataFrame
+
+from typing import Optional, Tuple
+
+
+# ============================================================
+# CONFIGURAÇÕES
+# ============================================================
+
+SOURCE_PATH = "/Volumes/infnet/bronze/raw_csv"
+
+
+# ============================================================
+# LOCALIZAR O PRÓXIMO SNAPSHOT
+# ============================================================
+
+def next_snapshot_and_version(
+    latest_snapshot_version: Optional[int]
+) -> Optional[Tuple[DataFrame, int]]:
+
+    # --------------------------------------------------------
+    # Lista os arquivos do Volume
+    # --------------------------------------------------------
+
+    files = dbutils.fs.ls(SOURCE_PATH)
+
+    # --------------------------------------------------------
+    # Mantém somente CSVs
+    # --------------------------------------------------------
+
+    snapshot_files = [
+        file.name
+        for file in files
+        if file.name.endswith(".csv")
+    ]
+
+    # --------------------------------------------------------
+    # Extrai a versão do nome
+    #
+    # Exemplo:
+    #
+    # 20260916_080000.csv
+    #
+    # vira:
+    #
+    # 20260916080000
+    # --------------------------------------------------------
+
+    snapshot_versions = []
+
+    for filename in snapshot_files:
+
+        name = filename.replace(".csv", "")
+
+        try:
+
+            version = int(
+                name.replace("_", "")
+            )
+
+            snapshot_versions.append(
+                version
+            )
+
+        except ValueError:
+
+            # Ignora arquivos que não seguem
+            # o padrão YYYYMMDD_HHMMSS.csv
+
+            continue
+
+    # --------------------------------------------------------
+    # Ordena cronologicamente
+    # --------------------------------------------------------
+
+    snapshot_versions.sort()
+
+    # --------------------------------------------------------
+    # Primeiro snapshot
+    # --------------------------------------------------------
+
+    if latest_snapshot_version is None:
+
+        if not snapshot_versions:
+            return None
+
+        next_version = snapshot_versions[0]
+
+    # --------------------------------------------------------
+    # Próximo snapshot
+    # --------------------------------------------------------
+
+    else:
+
+        next_versions = [
+            version
+            for version in snapshot_versions
+            if version > latest_snapshot_version
+        ]
+
+        if not next_versions:
+            return None
+
+        next_version = next_versions[0]
+
+    # --------------------------------------------------------
+    # Reconstrói o nome do arquivo
+    # --------------------------------------------------------
+
+    version_string = str(next_version)
+
+    filename = (
+        version_string[:8]
+        + "_"
+        + version_string[8:]
+        + ".csv"
+    )
+
+    snapshot_path = (
+        f"{SOURCE_PATH}/{filename}"
+    )
+
+    # --------------------------------------------------------
+    # Lê o snapshot completo
+    # --------------------------------------------------------
+
+    df = (
+        spark.read
+        .format("csv")
+        .option("header", "true")
+        .load(snapshot_path)
+    )
+
+    # --------------------------------------------------------
+    # Retorna:
+    #
+    # DataFrame
+    # versão
+    # --------------------------------------------------------
+
+    return (
+        df,
+        next_version
+    )
+
+
+# ============================================================
+# SCD TYPE 1
+# ============================================================
+#
+# Mantém somente o estado atual.
+#
+# INSERT → adiciona
+# UPDATE → sobrescreve
+# DELETE → remove
+# ============================================================
+
+dp.create_streaming_table(
+    "dados_silver_scd1"
+)
+
+
+dp.create_auto_cdc_from_snapshot_flow(
+
+    target="dados_silver_scd1",
+
+    source=next_snapshot_and_version,
+
+    keys=["matricula"],
+
+    stored_as_scd_type=1
+)
+
+
+# ============================================================
+# SCD TYPE 2
+# ============================================================
+#
+# Mantém o histórico das alterações.
+# ============================================================
+
+dp.create_streaming_table(
+    "dados_silver_scd2"
+)
+
+
+dp.create_auto_cdc_from_snapshot_flow(
+
+    target="dados_silver_scd2",
+
+    source=next_snapshot_and_version,
+
+    keys=["matricula"],
+
+    stored_as_scd_type=2
+)
