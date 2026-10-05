@@ -1,0 +1,567 @@
+---- DAB COM SECRET-SCOPE DO BIGQUERY (DAB CLI - POWER SHELL)----
+databricks secrets create-scope bigquery
+
+databricks secrets put-secret bigquery bigquery-service-account
+
+$valor = Get-Content "[SEU LOCAL]" -Raw
+$valor | databricks secrets put-secret bigquery bigquery-service-account
+
+----- CRIAÇÃO DO CATALOG (SQL EDITOR) -----
+
+CREATE CATALOG IF NOT EXISTS datalake;
+
+CREATE SCHEMA IF NOT EXISTS datalake.bronze;
+
+CREATE SCHEMA IF NOT EXISTS datalake.prata;
+
+CREATE SCHEMA IF NOT EXISTS datalake.ouro;
+
+CREATE VOLUME IF NOT EXISTS datalake.bronze.raw_csv;
+
+CREATE VOLUME IF NOT EXISTS datalake.bronze.schema;
+
+CREATE VOLUME IF NOT EXISTS datalake.bronze.checkpoint;
+
+---- INGESTÃO DE DADOS COM DATA FIXA (PYTHON NOTEBOOK) ----
+import base64
+
+PROJECT_ID = "basedosdados"
+DATASET = "br_rf_cnpj"
+TABLE = "estabelecimentos"
+PARENT_PROJECT = "model-argon-443519-c1"
+DATA_REFERENCIA = "2026-09-01"
+VOLUME_PATH = "/Volumes/infnet/bronze/raw_csv/cnpj"
+
+credentials_json = dbutils.secrets.get(
+    scope="bigquery",
+    key="bigquery-service-account"
+)
+
+credentials_base64 = base64.b64encode(
+    credentials_json.encode("utf-8")
+).decode("ascii")
+
+df = (
+    spark.read
+        .format("bigquery")
+        .option("credentials", credentials_base64)
+        .option("parentProject", PARENT_PROJECT)
+        .option("project", PROJECT_ID)
+        .option("dataset", DATASET)
+        .option("table", TABLE)
+        .load()
+)
+
+df_filtrado = (
+    df
+    .filter(
+        (df.data_referencia == DATA_REFERENCIA) &
+        (df.SITUACAO_CADASTRAL == 2)
+    )
+)
+
+print("Quantidade de registros:", df_filtrado.count())
+
+(
+    df_filtrado
+    .write
+    .option("header", "true")
+    .option("delimiter", ",")
+    .csv(VOLUME_PATH)
+)
+
+---- INGESTÃO DE DADOS COM ULTIMA DATA (PYTHON NOTEBOOK) ----
+import base64
+
+PROJECT_ID = "basedosdados"
+DATASET = "br_rf_cnpj"
+TABLE = "estabelecimentos"
+PARENT_PROJECT = "model-argon-443519-c1"
+VOLUME_PATH = "/Volumes/infnet/bronze/raw_csv/cnpj"
+
+credentials_json = dbutils.secrets.get(
+    scope="bigquery",
+    key="bigquery-service-account"
+)
+
+credentials_base64 = base64.b64encode(
+    credentials_json.encode("utf-8")
+).decode("ascii")
+
+df = (
+    spark.read
+        .format("bigquery")
+        .option("credentials", credentials_base64)
+        .option("parentProject", PARENT_PROJECT)
+        .option("project", PROJECT_ID)
+        .option("dataset", DATASET)
+        .option("table", TABLE)
+        .load()
+)
+
+# Descobre automaticamente a última data disponível
+ultima_data = (
+    df
+    .select("data_referencia")
+    .distinct()
+    .orderBy(df.data_referencia.desc())
+    .first()["data_referencia"]
+)
+
+print("Última data disponível:", ultima_data)
+
+# Filtra o último snapshot
+df_filtrado = (
+    df
+    .filter(
+        (df.data_referencia == ultima_data) &
+        (df.SITUACAO_CADASTRAL == 2)
+    )
+)
+
+print("Quantidade de registros:", df_filtrado.count())
+
+# Grava o snapshot no Volume
+(
+    df_filtrado
+    .write
+    .mode("append")
+    .option("header", "true")
+    .option("delimiter", ",")
+    .csv(VOLUME_PATH)
+)
+
+---- AUTOLOADER E STREAMING TABLE (PYTHON NOTEBOOK - DLT) ----
+from pyspark import pipelines as dp
+from pyspark.sql.functions import current_timestamp, col
+
+
+@dp.table(
+    name="cnpj_bronze",
+    comment="Dados brutos do CNPJ ingeridos via Auto Loader"
+)
+def cnpj_bronze():
+
+    return (
+        spark.readStream
+            .format("cloudFiles")
+            .option("cloudFiles.format", "csv")
+            .option("cloudFiles.inferColumnTypes", "true")
+            .option("cloudFiles.schemaEvolutionMode", "addNewColumns")
+            .option("header", "true")
+            .option("delimiter", ",")
+            .load("/Volumes/infnet/bronze/raw_csv/cnpj")
+
+            # Metadados técnicos da ingestão
+            .withColumn(
+                "_ingestion_timestamp",
+                current_timestamp()
+            )
+            .withColumn(
+                "_source_file",
+                col("_metadata.file_path")
+            )
+    )
+
+---- EXPECTATIONS (PYTHON NOTEBOOK - DLT) ----
+from pyspark import pipelines as dp
+from pyspark.sql.functions import expr
+
+
+# ============================================================
+# EXPECTATIONS
+# ============================================================
+
+REGRAS_CNPJ = {
+
+    "cnpj_preenchido":
+        "cnpj IS NOT NULL",
+
+    "cnpj_14_digitos":
+        "length(cnpj) = 14",
+
+    "situacao_valida":
+        "situacao_cadastral IN (1, 2, 3, 4, 8)",
+
+    "data_referencia_preenchida":
+        "data_referencia IS NOT NULL",
+
+    "cnae_principal_preenchido":
+        "cnae_fiscal_principal IS NOT NULL"
+}
+
+
+# Condição para identificar registros que devem
+# ir para a quarentena
+QUARANTINE_CONDITION = (
+    "NOT("
+    + " AND ".join(REGRAS_CNPJ.values())
+    + ")"
+)
+
+
+# ============================================================
+# ETAPA 3 — QUALITY / EXPECTATIONS
+# ============================================================
+
+@dp.table(
+    name="cnpj_quality",
+    comment="CNPJ com regras de qualidade aplicadas"
+)
+@dp.expect_all(REGRAS_CNPJ)
+def cnpj_quality():
+
+    return (
+        spark.readStream
+            .table("infnet_lakehouse.bronze.cnpj_bronze")
+
+            .withColumn(
+                "is_quarantined",
+                expr(QUARANTINE_CONDITION)
+            )
+    )
+
+
+# ============================================================
+# ETAPA 4 — QUARANTINE
+# ============================================================
+
+@dp.table(
+    name="cnpj_quarantine",
+    comment="Registros do CNPJ que falharam nas regras de qualidade"
+)
+def cnpj_quarantine():
+
+    return (
+        spark.readStream
+            .table("cnpj_quality")
+            .filter("is_quarantined = true")
+    )
+
+
+# ============================================================
+# ETAPA 5 — SILVER QUALITY
+# ============================================================
+
+@dp.table(
+    name="cnpj_silver_quality",
+    comment="CNPJ validado após as regras de qualidade",
+    partition_cols=["sigla_uf"],
+    table_properties={
+        "pipelines.autoOptimize.zOrderCols": "cnpj,id_municipio"
+    }
+)
+def cnpj_silver_quality():
+
+    return (
+        spark.readStream
+            .table("cnpj_quality")
+            .filter("is_quarantined = false")
+            .drop("is_quarantined")
+    )
+
+---- CDC, SCD, PARTICIONAMENTO E Z-ORDER (PYTHON NOTEBOOK - DLT) ----
+
+from pyspark import pipelines as dp
+from pyspark.sql.functions import col
+
+
+# ============================================================
+# 1. IDENTIFICA O PRÓXIMO SNAPSHOT
+# ============================================================
+
+def proximo_snapshot(latest_snapshot_version):
+
+    df = spark.read.table(
+        "cnpj_silver_quality"
+    )
+
+    snapshots = (
+        df
+        .select("data_referencia")
+        .distinct()
+        .orderBy("data_referencia")
+    )
+
+    # Primeiro snapshot
+    if latest_snapshot_version is None:
+
+        rows = (
+            snapshots
+            .limit(1)
+            .collect()
+        )
+
+    # Próximo snapshot
+    else:
+
+        rows = (
+            snapshots
+            .filter(
+                col("data_referencia")
+                > latest_snapshot_version
+            )
+            .limit(1)
+            .collect()
+        )
+
+    # Não existe novo snapshot
+    if not rows:
+        return None
+
+    proxima_data = rows[0]["data_referencia"]
+
+    snapshot = (
+        df
+        .filter(
+            col("data_referencia")
+            == proxima_data
+        )
+    )
+
+    return snapshot, proxima_data
+
+
+# ============================================================
+# 2. SCD TIPO 1
+# ============================================================
+
+dp.create_streaming_table(
+    name="dim_empresa_scd1",
+    comment="Dimensão de empresas - SCD Tipo 1"
+)
+
+
+dp.create_auto_cdc_from_snapshot_flow(
+    target="dim_empresa_scd1",
+    source=proximo_snapshot,
+    keys=["cnpj"],
+    stored_as_scd_type=1
+)
+
+
+# ============================================================
+# 3. SCD TIPO 2
+# ============================================================
+
+dp.create_streaming_table(
+    name="dim_empresa_scd2",
+    comment="Dimensão de empresas - SCD Tipo 2"
+)
+
+
+dp.create_auto_cdc_from_snapshot_flow(
+    target="dim_empresa_scd2",
+    source=proximo_snapshot,
+    keys=["cnpj"],
+    stored_as_scd_type=2
+)
+
+
+---- CAMADA GOLD (PYTHON NOTEBOOK - DLT) ----
+
+from pyspark import pipelines as dp
+from pyspark.sql.functions import count
+
+
+# ============================================================
+# GOLD 1 — DIMENSÃO MUNICÍPIO
+# ============================================================
+
+@dp.materialized_view(
+    name="dim_municipio",
+    comment="Dimensão de municípios dos estabelecimentos"
+)
+def dim_municipio():
+
+    return (
+        spark.read.table("infnet_lakehouse.silver.cnpj_silver_quality")
+        .select(
+            "id_municipio",
+            "id_municipio_rf",
+            "sigla_uf"
+        )
+        .filter(
+            "id_municipio IS NOT NULL"
+        )
+        .dropDuplicates(
+            ["id_municipio"]
+        )
+    )
+
+
+# ============================================================
+# GOLD 2 — DIMENSÃO CNAE
+# ============================================================
+
+@dp.materialized_view(
+    name="dim_cnae",
+    comment="Dimensão de CNAE dos estabelecimentos"
+)
+def dim_cnae():
+
+    return (
+        spark.read.table("infnet_lakehouse.silver.cnpj_silver_quality")
+        .select(
+            "cnae_fiscal_principal"
+        )
+        .filter(
+            "cnae_fiscal_principal IS NOT NULL"
+        )
+        .dropDuplicates()
+    )
+
+
+# ============================================================
+# GOLD 3 — DIMENSÃO EMPRESA
+# ============================================================
+
+@dp.materialized_view(
+    name="dim_empresa",
+    comment="Dimensão de empresas com histórico SCD Tipo 2"
+)
+def dim_empresa():
+
+    return (
+        spark.read.table(
+            "infnet_lakehouse.silver.dim_empresa_scd2"
+        )
+    )
+
+
+# ============================================================
+# GOLD 4 — FATO ESTABELECIMENTOS
+# ============================================================
+
+@dp.materialized_view(
+    name="fato_estabelecimentos",
+    comment="Quantidade de estabelecimentos por município, CNAE e situação"
+)
+def fato_estabelecimentos():
+
+    return (
+        spark.read.table("infnet_lakehouse.silver.cnpj_silver_quality")
+
+        .groupBy(
+            "data_referencia",
+            "id_municipio",
+            "sigla_uf",
+            "cnae_fiscal_principal",
+            "situacao_cadastral"
+        )
+
+        .agg(
+            count("cnpj").alias(
+                "quantidade_estabelecimentos"
+            )
+        )
+    )
+
+---- ACESSO A UM GRUPO - CATALOG (SQL EDITOR) ----
+GRANT USE CATALOG
+ON CATALOG datalake_financeiro
+TO `engenheiro_de_dados`;
+
+---- ACESSO A UM GRUPO - SCHEMA (SQL EDITOR) ----
+GRANT USE SCHEMA
+ON SCHEMA datalake_financeiro.bronze
+TO `engenheiro_de_dados`;
+
+---- ACESSO A UM GRUPO - SELECT INDIVIDUAL OU SCHEMA (SQL EDITOR) ----
+
+GRANT SELECT
+ON SCHEMA impostometro.ouro
+TO `analista_d`;
+
+GRANT SELECT
+ON TABLE datalake_financeiro.bronze.dados_bronze
+TO `engenheiro_de_dados`;
+
+
+---- CRIANDO CRITÉRIOS DE GOVERNANÇA (SQL EDITOR) ----
+CREATE GOVERNED TAG classification
+  DESCRIPTION 'Classificação de sensibilidade dos dados'
+  VALUES ('green', 'yellow', 'red');
+
+---- TAGS PARA COLUNA (SQL EDITOR) ---
+ALTER TABLE infnet.bronze.dados
+ALTER COLUMN cpf
+SET TAGS ('classification' = 'red');
+
+---- APLICAÇÃO DE MASCARAMENTO (SQL EDITOR) ---
+CREATE OR REPLACE FUNCTION infnet.bronze.mask_red(valor STRING)
+RETURNS STRING
+RETURN '***REDACTED***';
+
+
+---- APLICAÇÃO DE POLITICA (SQL EDITOR) ---
+CREATE POLICY mask_red_columns
+ON SCHEMA infnet.bronze
+COLUMN MASK infnet.bronze.mask_red
+TO `account users`
+FOR TABLES
+MATCH COLUMNS has_tag_value('classification', 'red') AS m
+ON COLUMN m;
+
+---- MONITORAMENTO DOS JOBS (SQL EDITOR) ----
+
+SELECT
+    result_state,
+    COUNT(*) AS quantidade
+FROM system.lakeflow.job_run_timeline
+WHERE period_start_time >= current_timestamp() - INTERVAL 7 DAYS
+GROUP BY result_state
+ORDER BY quantidade DESC;
+
+---- QUERIES FINAL (SQL EDITOR) ----
+
+SELECT
+    f.data_referencia,
+    m.sigla_uf,
+    f.cnae_fiscal_principal,
+    SUM(f.quantidade_estabelecimentos) AS quantidade_estabelecimentos
+
+FROM infnet.gold.fato_estabelecimentos AS f
+
+LEFT JOIN infnet.gold.dim_municipio AS m
+    ON f.id_municipio = m.id_municipio
+
+WHERE f.situacao_cadastral = 2
+
+GROUP BY
+    f.data_referencia,
+    m.sigla_uf,
+    f.cnae_fiscal_principal
+
+ORDER BY
+    f.data_referencia DESC,
+    quantidade_estabelecimentos DESC;
+
+WITH ultima_data AS (
+    SELECT MAX(data_referencia) AS data_referencia
+    FROM infnet.gold.fato_estabelecimentos
+)
+
+SELECT
+    f.data_referencia,
+    m.sigla_uf,
+    f.cnae_fiscal_principal,
+    SUM(f.quantidade_estabelecimentos) AS quantidade_estabelecimentos
+
+FROM infnet.gold.fato_estabelecimentos AS f
+
+LEFT JOIN infnet.gold.dim_municipio AS m
+    ON f.id_municipio = m.id_municipio
+
+INNER JOIN ultima_data AS u
+    ON f.data_referencia = u.data_referencia
+
+WHERE f.situacao_cadastral = 2
+
+GROUP BY
+    f.data_referencia,
+    m.sigla_uf,
+    f.cnae_fiscal_principal
+
+ORDER BY
+    quantidade_estabelecimentos DESC;
