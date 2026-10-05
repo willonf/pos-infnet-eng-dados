@@ -1,4 +1,4 @@
-_from pyspark import pipelines as dp
+from pyspark import pipelines as dp
 from pyspark.sql.functions import current_timestamp, col
 
 
@@ -6,7 +6,7 @@ from pyspark.sql.functions import current_timestamp, col
     name="projeto2_bronze",
     comment="Dados brutos"
 )
-def cnpj_bronze():
+def projeto2_bronze():
 
     source_path = "/Volumes/projeto2/bronze/raw_csv"
     checkpoint_path = "/Volumes/projeto2/bronze/checkpoint"
