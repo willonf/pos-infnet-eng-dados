@@ -1,0 +1,29 @@
+Classes de armazenamento do S3 AWS
+
+A escolha da classe de armazenamento adequada permite aos usuários otimizar os custos de acordo com as características específicas de suas cargas de trabalho. Abaixo estão algumas das principais classes de armazenamento do Amazon S3:
+
+As classes de armazenamento S3 incluem:
+
+S3 Intelligent-Tiering: move automaticamente os dados para o nível de acesso mais econômico com base na frequência de acesso, sem impacto sobre a performance, taxas de recuperação ou sobrecarga operacional.
+
+Quando utilizar: quando há dados com padrões de acesso desconhecidos ou variáveis.
+S3 Standard: para dados frequentemente acessados. Fornece alta durabilidade, disponibilidade e desempenho.
+
+Quando utilizar: é recomendado para diversos casos de uso, como aplicativos na nuvem, sites dinâmicos, distribuição de conteúdo, aplicativos móveis e de jogos e dados analíticos de big data.
+S3 Standard-Infrequent Access (S3 Standard-IA): é recomendado para dados acessados com menos frequência, mas que exigem acesso rápido quando necessários.
+
+Quando utilizar: a combinação de baixo custo e alta performance tornam a classe S3 Standard-IA ideal para armazenamento de longa duração, backups e recuperação de desastres.
+S3 One Zone-Infrequent Access (S3 One Zone-IA): ao contrário de outras classes de armazenamento do S3, que armazenam dados em no mínimo três Zonas de disponibilidade (AZs), a S3 One Zone-IA armazena dados em uma única AZ, com um custo 20% inferior ao S3 Standard-IA.
+
+Quando utilizar: é indicado para quem busca uma opção com menor custo para armazenar dados acessados com menos frequência, mas que exigem acesso rápido quando necessários.
+O Amazon S3 Glacier é uma classe de armazenamento do Amazon S3 projetada para armazenar dados de maneira segura e duradoura a longo prazo, com ênfase em custos mais baixos. Essa classe é particularmente adequada para dados que são acessados com extrema raridade e para os quais um tempo de recuperação mais longo é aceitável.
+
+S3 Glacier Instant Retrieval: para dados de arquivo que precisam de acesso imediato, pois oferece o armazenamento de custo mais baixo para dados de longa duração, que raramente são acessados e exigem recuperação em milissegundos.
+
+Quando utilizar: é ideal para arquivar dados que precisam de acesso imediato, como imagens médicas, recursos de mídia de notícias ou arquivos de conteúdo gerado pelo usuário.
+S3 Glacier Flexible Retrieval (anteriormente S3 Glacier): para dados de longo prazo raramente acessados que não requerem acesso imediato.
+
+Quando utilizar: para dados de arquivo que não requerem acesso imediato, mas que precisam da flexibilidade para recuperar grandes conjuntos de dados sem nenhum custo, como casos de uso de backup ou recuperação de desastres.
+Amazon S3 Glacier Deep Archive (S3 Glacier Deep Archive): para arquivamento de longo prazo e preservação digital com recuperação em horas com o menor custo de armazenamento na nuvem.
+
+Quando utilizar: essa classe é projetada para clientes que mantêm conjuntos de dados por 7 a 10 anos ou mais para cumprir requisitos de conformidade regulatória, especialmente em setores altamente regulados como serviços financeiros, saúde e setores públicos.

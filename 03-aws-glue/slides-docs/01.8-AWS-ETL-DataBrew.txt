@@ -1,0 +1,10 @@
+- AWS Glue (ETL) vs. Glue DataBrew: a principal diferença está na interface e no método de trabalho. O AWS Glue (ETL) é focado em código (Python ou Scala com Spark), sendo ideal para engenheiros que precisam de transformações complexas e customizadas. O Glue DataBrew é uma ferramenta visual no-code (estilo planilha) voltada para limpeza e normalização rápida, permitindo que analistas preparem dados sem escrever scripts.
+
+- Atualização do Dataset: a Recipe (receita) é um conjunto de instruções salvo de forma independente. Se você adicionar novos dados ao dataset original mantendo a mesma estrutura, a Recipe será aplicada a esses novos registros automaticamente na próxima execução do Job. Caso a atualização altere a estrutura (como remover uma coluna que a Recipe utiliza), os passos dependentes dessa coluna falharão durante o processamento.
+
+- Garantia de Qualidade: o DataBrew utiliza o Data Profiling para gerar estatísticas automáticas sobre a saúde dos dados, destacando valores nulos, duplicados, outliers e distribuições de colunas. Isso permite identificar e corrigir problemas de integridade visualmente através de mais de 250 transformações prontas, garantindo que apenas dados limpos e padronizados sejam carregados no Data Warehouse.
+
+Resumindo
+- Glue ETL = Código/Spark; DataBrew = Visual/No-code.
+- Recipes são reutilizáveis, mas dependem da consistência da estrutura do dataset.
+- Profiling é a chave para detectar erros de qualidade antes do carregamento final.

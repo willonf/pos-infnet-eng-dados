@@ -1,0 +1,35 @@
+O AWS Lake Formation é um serviço da Amazon Web Services (AWS) projetado para simplificar e fortalecer a criação, gestão e segurança de Data Lakes na nuvem. 
+Um Data Lake é uma arquitetura de armazenamento que permite armazenar grandes volumes de dados brutos e processados de forma flexível e escalável. O Lake Formation
+oferece recursos específicos para facilitar a construção e o gerenciamento de Data Lakes na AWS.
+
+Principais funcionalidades e conceitos associados ao AWS Lake Formation:
+
+1 - Criação de Data Lakes:
+O Lake Formation facilita a criação de Data Lakes, permitindo a definição de esquemas e a ingestão de dados em formatos variados, como CSV, Parquet e Avro.
+
+2 - Controle de Acesso e Permissões:
+Oferece uma camada de controle de acesso centralizada para gerenciar permissões e acesso aos dados no Data Lake. Permite definir políticas de segurança para usuários e grupos.
+
+3 - Catalogação de Metadados:
+Automatiza a catalogação e organização de metadados para facilitar a descoberta e busca de dados no Data Lake. Isso inclui informações sobre esquemas, formatos e localizações de dados.
+
+4 - Integração com AWS Glue:
+O AWS Lake Formation está integrado com o AWS Glue, um serviço de ETL (Extração, Transformação e Carga) que facilita a preparação e transformação de dados antes de serem carregados no Data Lake.
+
+5 - Políticas de Segurança Preditivas:
+Utiliza aprendizado de máquina para criar políticas de segurança preditivas, recomendando automaticamente políticas de acesso com base em padrões de uso históricos.
+
+6 - Suporte a SQL e Presto:
+Fornece suporte a consultas SQL padrão e ao mecanismo Presto, permitindo que os usuários executem consultas diretamente nos dados do Data Lake.
+
+7 - Integração com Serviços AWS:
+Integrado com outros serviços da AWS, como Amazon S3 (armazenamento), AWS Identity and Access Management (IAM), AWS Key Management Service (KMS) e AWS CloudTrail.
+
+8 - Auditoria e Monitoramento:
+Oferece recursos de auditoria e monitoramento para rastrear atividades e acessos aos dados no Data Lake.
+
+9 - Suporte a Diversos Formatos de Dados:
+Pode ser usado para armazenar e gerenciar dados em vários formatos, incluindo dados estruturados e não estruturados.
+
+O AWS Lake Formation simplifica muitos aspectos do ciclo de vida do Data Lake, desde a ingestão até o acesso seguro aos dados. Ele é projetado para fornecer uma abordagem 
+mais simplificada e segura para a construção e gestão de Data Lakes na nuvem AWS.
