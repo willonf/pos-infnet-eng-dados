@@ -1,0 +1,101 @@
+id_transacao,categoria_produto,id_cliente,pais,valor
+1,Esportes,C101,Reino Unido,87
+2,Roupas,C102,Reino Unido,229
+3,Brinquedos,C103,Reino Unido,699
+4,Eletrônicos,C104,EUA,379
+5,Artigos para Casa,C105,EUA,1337
+6,Roupas,C106,Reino Unido,1495
+7,Esportes,C107,Reino Unido,1458
+8,Eletrônicos,C108,Espanha,1496
+9,Eletrônicos,C109,EUA,666
+10,Artigos para Casa,C110,Reino Unido,1268
+11,Brinquedos,C111,Espanha,461
+12,Esportes,C112,Espanha,894
+13,Brinquedos,C113,EUA,1356
+14,Alimentos,C114,Reino Unido,984
+15,Artigos para Casa,C115,Reino Unido,1336
+16,Livros,C116,EUA,394
+17,Brinquedos,C117,EUA,423
+18,Alimentos,C118,EUA,73
+19,Esportes,C119,Espanha,853
+20,Livros,C120,EUA,959
+21,Brinquedos,C121,Reino Unido,487
+22,Roupas,C122,EUA,555
+23,Brinquedos,C123,Reino Unido,652
+24,Livros,C124,EUA,1082
+25,Brinquedos,C125,EUA,1322
+26,Esportes,C126,Espanha,263
+27,Alimentos,C127,EUA,678
+28,Livros,C128,Reino Unido,65
+29,Brinquedos,C129,Espanha,732
+30,Artigos para Casa,C130,EUA,1321
+31,Artigos para Casa,C131,Reino Unido,1062
+32,Alimentos,C132,Reino Unido,232
+33,Eletrônicos,C133,EUA,1364
+34,Alimentos,C134,Espanha,1170
+35,Esportes,C135,EUA,119
+36,Artigos para Casa,C136,EUA,1066
+37,Artigos para Casa,C137,EUA,983
+38,Esportes,C138,EUA,572
+39,Alimentos,C139,Reino Unido,601
+40,Artigos para Casa,C140,Espanha,1203
+41,Artigos para Casa,C141,EUA,842
+42,Eletrônicos,C142,Reino Unido,1245
+43,Brinquedos,C143,EUA,34
+44,Artigos para Casa,C144,Espanha,1147
+45,Eletrônicos,C145,Reino Unido,1012
+46,Eletrônicos,C146,Espanha,798
+47,Esportes,C147,EUA,54
+48,Roupas,C148,EUA,1305
+49,Livros,C149,Espanha,485
+50,Artigos para Casa,C150,Espanha,920
+51,Eletrônicos,C151,Espanha,1285
+52,Alimentos,C152,EUA,676
+53,Roupas,C153,Reino Unido,245
+54,Alimentos,C154,Espanha,96
+55,Esportes,C155,Espanha,401
+56,Artigos para Casa,C156,Espanha,749
+57,Artigos para Casa,C157,Espanha,1087
+58,Roupas,C158,EUA,1465
+59,Brinquedos,C159,Espanha,888
+60,Eletrônicos,C160,Reino Unido,454
+61,Artigos para Casa,C161,Reino Unido,300
+62,Roupas,C162,Espanha,110
+63,Brinquedos,C163,EUA,750
+64,Livros,C164,Espanha,461
+65,Brinquedos,C165,EUA,802
+66,Eletrônicos,C166,Espanha,239
+67,Esportes,C167,Reino Unido,176
+68,Roupas,C168,Reino Unido,697
+69,Artigos para Casa,C169,Reino Unido,1265
+70,Livros,C170,Espanha,911
+71,Eletrônicos,C171,Reino Unido,89
+72,Brinquedos,C172,Reino Unido,1121
+73,Artigos para Casa,C173,EUA,426
+74,Livros,C174,Espanha,724
+75,Livros,C175,EUA,716
+76,Artigos para Casa,C176,Reino Unido,667
+77,Eletrônicos,C177,EUA,334
+78,Alimentos,C178,Reino Unido,842
+79,Artigos para Casa,C179,Reino Unido,1222
+80,Roupas,C180,EUA,216
+81,Alimentos,C181,Reino Unido,155
+82,Esportes,C182,Reino Unido,1201
+83,Brinquedos,C183,Reino Unido,1197
+84,Roupas,C184,Espanha,475
+85,Esportes,C185,Reino Unido,691
+86,Artigos para Casa,C186,EUA,468
+87,Roupas,C187,EUA,1360
+88,Alimentos,C188,Espanha,1264
+89,Eletrônicos,C189,Reino Unido,250
+90,Eletrônicos,C190,EUA,1082
+91,Livros,C191,EUA,700
+92,Livros,C192,Reino Unido,1334
+93,Artigos para Casa,C193,Espanha,627
+94,Roupas,C194,Reino Unido,192
+95,Brinquedos,C195,Reino Unido,1290
+96,Livros,C196,EUA,1376
+97,Alimentos,C197,Reino Unido,794
+98,Alimentos,C198,EUA,1309
+99,Eletrônicos,C199,Reino Unido,634
+100,Eletrônicos,C200,EUA,742

@@ -1,0 +1,19 @@
+1. Amazon S3 = um por arquivo = entrada
+2. Join = unir as duas origens
+3. Drop Duplicates
+4. Amazon S3 = saída
+
+1. INNER JOIN (O ponto em comum)
+- O que faz: retorna apenas o que existe nas duas tabelas ao mesmo tempo. Quem não tem par, fica de fora
+
+2. LEFT JOIN (Foco na tabela da esquerda)
+- O que faz: retorna tudo que está na tabela da esquerda (a primeira que você citou no comando) e junta 
+com o que der match (combinar) na tabela da direita. Se não tiver par na direita, preenche com NULL (vazio)
+
+3. RIGHT JOIN (Foco na tabela da direita)
+- O que faz: É o inverso do Left Join. Retorna tudo que está na tabela da direita e junta com as 
+correspondências da esquerda. Se faltar correspondência na esquerda, preenche com NULL
+
+4. OUTER JOIN (ou FULL OUTER JOIN)
+- O que faz: Retorna tudo de todo mundo. Junta a tabela da esquerda e a da direita, mostrando os pares que 
+combinam e preenchendo com NULL onde não houver correspondência em nenhum dos lados

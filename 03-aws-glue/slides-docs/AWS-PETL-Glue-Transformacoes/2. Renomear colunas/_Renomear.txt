@@ -1,0 +1,5 @@
+1. Amazon S3 = entrada
+2. Drop Null Fields
+3. Rename Field (x2)
+   ou Change Schema
+5. Amazon S3 = saída

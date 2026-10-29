@@ -1,0 +1,4 @@
+1. Amazon S3 = entrada
+2. Change Schema = vendas p float
+3. Derived Column = round(vendas_atual / vendas_objetivo * 100, 2)
+4. Amazon S3 = saída

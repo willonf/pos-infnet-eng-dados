@@ -1,0 +1,101 @@
+cliente_id,primeiro_nome,sobrenome,pais,cidade,vendas
+69.0,Olivia,Williams,USA,Paris,3804.0
+,,,,,
+55.0,Olivia,Miller,SP,London,1909.0
+11.0,Daniel,Taylor,FR,Manchester,1943.0
+59.0,William,Wilson,UK,New York,918.0
+37.0,John,Doe,DE,Manchester,3951.0
+10.0,Sophia,Moore,UK,New York,2168.0
+24.0,Jane,Williams,DE,Manchester,1828.0
+81.0,William,Doe,FR,London,2148.0
+43.0,William,Doe,FR,Madrid,979.0
+56.0,Jane,Miller,DE,Hamburg,3412.0
+3.0,Sophia,Taylor,USA,Lyon,1167.0
+45.0,Chris,Moore,DE,Berlin,1028.0
+31.0,Michael,Doe,USA,Hamburg,3763.0
+64.0,Olivia,Smith,FR,Berlin,4983.0
+61.0,Michael,Brown,FR,Manchester,2366.0
+2.0,Michael,Moore,SP,Lyon,1145.0
+52.0,Michael,Taylor,DE,Madrid,4399.0
+90.0,Jane,Smith,UK,Berlin,1250.0
+33.0,Isabella,Moore,FR,Hamburg,2292.0
+84.0,Olivia,Brown,SP,Lyon,695.0
+,,,,,
+42.0,John,Wilson,UK,Manchester,4095.0
+71.0,Daniel,Williams,SP,Paris,3617.0
+,,,,,
+36.0,Daniel,Johnson,DE,Chicago,4764.0
+87.0,Jane,Wilson,USA,Lyon,4071.0
+63.0,Jane,Williams,SP,New York,3340.0
+4.0,Isabella,Moore,DE,London,3125.0
+,,,,,
+,,,,,
+66.0,William,Taylor,SP,Chicago,3161.0
+35.0,Daniel,Johnson,SP,Hamburg,809.0
+68.0,Chris,Moore,UK,Manchester,732.0
+32.0,Jane,Miller,USA,Lyon,1090.0
+7.0,Olivia,Doe,UK,London,3676.0
+67.0,Isabella,Taylor,DE,Hamburg,1024.0
+77.0,Isabella,Davis,USA,New York,2228.0
+,,,,,
+6.0,John,Taylor,SP,London,211.0
+16.0,Chris,Moore,SP,London,100.0
+18.0,Olivia,Johnson,UK,Manchester,4548.0
+14.0,Olivia,Moore,UK,Barcelona,857.0
+,,,,,
+,,,,,
+47.0,Isabella,Williams,USA,Berlin,4636.0
+62.0,Jane,Wilson,DE,Berlin,2227.0
+51.0,William,Miller,SP,Manchester,4460.0
+,,,,,
+82.0,Emily,Brown,SP,Madrid,2674.0
+86.0,Chris,Williams,SP,Madrid,2421.0
+79.0,Sophia,Taylor,DE,New York,378.0
+29.0,William,Doe,SP,London,1153.0
+60.0,Chris,Taylor,FR,Hamburg,3964.0
+30.0,Jane,Brown,SP,Hamburg,718.0
+22.0,Michael,Wilson,FR,Hamburg,3288.0
+23.0,Chris,Moore,USA,Paris,582.0
+76.0,Sophia,Davis,DE,Hamburg,1434.0
+38.0,Daniel,Miller,FR,Chicago,2633.0
+58.0,Michael,Taylor,FR,Manchester,3345.0
+46.0,Chris,Brown,USA,London,2673.0
+83.0,Michael,Miller,FR,Paris,1500.0
+28.0,William,Johnson,SP,Hamburg,2576.0
+80.0,Emily,Smith,SP,Madrid,4760.0
+41.0,William,Taylor,FR,Hamburg,1028.0
+57.0,Sophia,Taylor,SP,Hamburg,3318.0
+5.0,Sophia,Brown,SP,Lyon,4591.0
+40.0,John,Johnson,FR,Lyon,4839.0
+44.0,Michael,Moore,DE,New York,286.0
+8.0,Isabella,Miller,SP,London,1748.0
+53.0,Daniel,Wilson,UK,New York,2499.0
+25.0,John,Miller,FR,Madrid,3482.0
+72.0,Chris,Davis,USA,Manchester,2459.0
+15.0,John,Smith,DE,Hamburg,3464.0
+17.0,Chris,Moore,FR,Paris,2630.0
+,,,,,
+73.0,Sophia,Johnson,DE,Chicago,638.0
+88.0,John,Wilson,UK,Berlin,3441.0
+75.0,John,Doe,UK,London,2539.0
+50.0,Olivia,Doe,FR,Barcelona,3843.0
+20.0,Michael,Williams,UK,Barcelona,3624.0
+13.0,Isabella,Williams,FR,Lyon,4485.0
+39.0,Emily,Brown,SP,Madrid,1347.0
+19.0,Sophia,Williams,FR,New York,3407.0
+70.0,Emily,Davis,FR,New York,1212.0
+78.0,William,Smith,FR,Paris,220.0
+65.0,Jane,Wilson,DE,Berlin,720.0
+9.0,Michael,Smith,FR,London,3803.0
+49.0,Isabella,Williams,SP,New York,3922.0
+54.0,John,Johnson,SP,Chicago,2232.0
+48.0,Sophia,Moore,UK,London,4542.0
+89.0,Emily,Moore,DE,Hamburg,3231.0
+27.0,Olivia,Johnson,SP,Paris,931.0
+26.0,John,Brown,USA,Manchester,126.0
+12.0,Daniel,Miller,FR,London,3453.0
+34.0,Sophia,Taylor,DE,Paris,3494.0
+21.0,Michael,Wilson,FR,Barcelona,1288.0
+85.0,John,Taylor,UK,Barcelona,2145.0
+1.0,John,Williams,SP,Paris,3527.0
+74.0,William,Smith,UK,Paris,1724.0

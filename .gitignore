@@ -222,3 +222,14 @@ projetos/projeto2/01-catalog-volumes
 
 # MacOS
 *.DS_store
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json

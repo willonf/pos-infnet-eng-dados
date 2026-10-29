@@ -1,0 +1,8 @@
+1. Amazon S3 = entrada
+2. Remove Null Rows
+3. Change Schema = vendas p float
+4. Filter = vendas > 4000
+5. Concatenate Columns = Nome + Sobrenome
+6. Amazon S3 = saída
+
+

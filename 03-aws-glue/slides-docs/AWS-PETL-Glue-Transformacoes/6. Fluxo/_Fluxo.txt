@@ -1,0 +1,6 @@
+1. Amazon S3 = um por arquivo = entrada
+2. Filter = associado ao cliente = Gold
+3. Change Schema = valor p float
+4. Join
+5. Derived Column = valor * 0.05
+6. Amazon S3 = saída
