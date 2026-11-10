@@ -1,6 +1,18 @@
-# Terraform — Bucket S3 (aula AWS Glue)
+# Terraform — Buckets S3 + upload de dados
 
-Cria um bucket S3 com versionamento, criptografia SSE-S3 e bloqueio de acesso público.
+Cria:
+
+- buckets S3 das camadas (bronze/silver/gold) com versionamento, criptografia SSE-S3
+  e bloqueio de acesso público (`main.tf`);
+- o upload dos arquivos de dados de `var.bucket_uploads` para os buckets (`uploads.tf`).
+
+Os jobs AWS Glue são criados à parte, no Glue Studio (Visual ETL).
+
+```
+terraform/
+├── main.tf                         # provider, variáveis gerais, buckets S3
+└── uploads.tf                      # upload dos arquivos de dados para os buckets
+```
 
 ## 1. Pré-requisitos
 
@@ -14,7 +26,7 @@ aws --version
 ## 2. Configurar credenciais da AWS (um único perfil)
 
 Crie um usuário IAM com permissão de administrador **somente para o laboratório**
-(ex.: política `AmazonS3FullAccess` + `IAMReadOnlyAccess`), gere um Access Key
+(ex.: política `AmazonS3FullAccess`), gere um Access Key
 e configure o AWS CLI:
 
 ```bash
@@ -263,6 +275,36 @@ terraform destroy
 
 > `force_destroy = true` (padrão de cada bucket) permite apagar mesmo com objetos
 > dentro. Em produção, use `false` e esvazie o bucket antes.
+
+## 7. Upload dos arquivos de dados
+
+`uploads.tf` envia o conteúdo de pastas locais para os buckets no mesmo `apply` que
+os cria. O padrão envia `../../projetos/projeto3/dataset/*` (CSVs do Olist) para a raiz
+da bronze. Para mudar, defina `bucket_uploads` no `terraform.tfvars`:
+
+```hcl
+bucket_uploads = [
+  { bucket = "bronze", source = "../../projetos/projeto3/dataset", prefix = "olist/" },
+  {
+    bucket  = "bronze"
+    source  = "../slides-docs/AWS-PETL-Glue-Transformacoes/1. Duplicados"
+    pattern = "*.csv"          # glob relativo a source (padrão "**" = tudo, recursivo)
+    prefix  = "duplicados/"    # pasta no bucket (padrão "" = raiz)
+  },
+]
+```
+
+- `source` é relativo à pasta `terraform/`.
+- `bucket` é uma chave de `buckets` (`bronze`, `silver`, `gold`...).
+- Editou o arquivo local? O próximo `apply` reenvia (detectado pelo hash).
+- Removeu da pasta / da lista? O próximo `apply` **apaga** o objeto do bucket.
+- `.DS_Store` é ignorado.
+
+Confira o que foi enviado com `terraform output uploaded_objects`.
+
+> Os objetos passam a ser gerenciados pelo Terraform: não os apague/edite pelo console,
+> senão o próximo `plan` vai querer recriá-los. Arquivos grandes ou muitos arquivos
+> (ex.: dados particionados) ficam melhor com `aws s3 sync` fora do Terraform.
 
 ## Alternativa: credenciais só por variáveis de ambiente
 
